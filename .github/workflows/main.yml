@@ -1,6 +1,5 @@
 name: GitHub Pages Deploy
 
-# Trigger workflow on push to main branch
 on:
   push:
     branches:
@@ -17,5 +16,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .  # Root folder
-
+          publish_dir: .
+          force_orphan: true
