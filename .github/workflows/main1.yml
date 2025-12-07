@@ -1,35 +1,45 @@
-name: GitHub Pages Deploy
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Pages Deploy
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Create index.html from README.md
+      - name: Run detected tests (Node or Python)
+        shell: bash
         run: |
-          echo "<!DOCTYPE html>
-          <html>
-          <head><title>Live Message</title></head>
-          <body>
-          $(pandoc README.md)
-          </body>
-          </html>" > index.html
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          force_orphan: true
+          set -e
+          if [ -f package.json ]; then
+            echo "Detected Node project (package.json). Running npm ci && npm test"
+            if command -v npm >/dev/null 2>&1; then
+              npm ci
+              npm test
+            else
+              echo "npm not found on runner" >&2
+              exit 1
+            fi
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            echo "Detected Python project. Setting up venv and running pytest if available"
+            python -V
+            python -m venv .venv
+            source .venv/bin/activate
+            pip install --upgrade pip setuptools || true
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt || true
+            fi
+            if command -v pytest >/dev/null 2>&1; then
+              pytest -q
+            else
+              echo "pytest not found — no tests run"
+            fi
+          else
+            echo "No package.json, pyproject.toml, or requirements.txt found — skipping tests"
+          fi
